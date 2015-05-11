@@ -2,7 +2,7 @@ keyboard-gadget
 ===============
 
 keyboard-gadget is a shell script that sets up a simple HID keyboard
-gadget using configfs.
+gadget via ConfigFS.
 
 Usage
 -----
@@ -14,9 +14,9 @@ have been unloaded from the kernel and then:
 ```
 This will configure the gadget and bind it to the system UDC driver, which
 must be set by you. It is one of the variables defined in the beginning of
-the script and must be the name of one of the special files in /sys/class/udc/.
+the script and must be the name of one of the special files in ```/sys/class/udc/```.
 
-After it is configured you can write HID reports to /dev/hidg<xx>, a device file
+After it is configured you can write HID reports to ```/dev/hidg<xx>```, a device file
 created when the ConfigFS gadget is bound to the UDC driver (last line of the script).
 The host will read them at its leisure as per the USB spec.
 
