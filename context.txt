@@ -1,0 +1,132 @@
+http://www.spinics.net/lists/linux-usb/msg115328.html
+
+This series aims at integrating configfs into uvc, the way
+it has been done for acm, ncm, ecm, eem, ecm subset, rndis, obex, phonet,
+mass_storage, FunctionFS, loopback, sourcesink, uac1, uac2 and uvc.
+
+The hid function driver needs some data from userspace, which cannot
+be known in advance, so it must be passed somehow to the kernel.
+
+So far passing this data has been done in a rather tricky way:
+another (proablby out-of-tree) kernel module is required to provide
+fake platform device(s), for which the g_hid happens to be
+a platform driver. The platform devices contain in their platform_data
+the data to be passed to the hid function, and during platform drivers's
+probe the data is passed.
+
+With configfs passing of the said data is straightforward: there is
+a report_desc attribute in hid function's directory, to which the
+data is just written.
+
+Rebased onto Felipe's testing/next.
+
+Since Felipe has closed his tree for 3.18, this is meant for 3.19.
+
+BACKWARD COMPATIBILITY
+======================
+
+Please note that the old g_hid.ko is still available and works.
+
+
+USING THE NEW "GADGET"
+======================
+
+Please refer to this post:
+
+http://www.spinics.net/lists/linux-usb/msg76388.html
+
+for general information from Sebastian on how to use configfs-based
+gadgets (*).
+
+With configfs the procedure is as follows, compared to the information
+mentioned above (*):
+
+instead of mkdir functions/acm.ttyS1 do
+
+mkdir functions/hid.<instance name>
+
+e.g. mkdir functions/hid.usb0.
+
+In the hid.usb0 directory there will be the following attributes:
+
+	protocol	- HID protocol to use
+	report_desc	- data to be used in HID reports, except data
+			passed with /dev/hidg<X>
+	report_length	- HID report length
+	subclass	- HID subclass to use
+
+For a keyboard protocol and subclass are 1, report_length is 8,
+while the report_desc is:
+
+$ hd my_report_desc
+00000000  05 01 09 06 a1 01 05 07  19 e0 29 e7 15 00 25 01  |..........)...%.|
+00000010  75 01 95 08 81 02 95 01  75 08 81 03 95 05 75 01  |u.......u.....u.|
+00000020  05 08 19 01 29 05 91 02  95 01 75 03 91 03 95 06  |....).....u.....|
+00000030  75 08 15 00 25 65 05 07  19 00 29 65 81 00 c0     |u...%e....)e...|
+0000003f
+
+Such a sequence of bytes can be stored to the attribute with echo:
+
+$ echo -ne \\x05\\x01\\x09\\x06\\xa1.....
+
+Below is a script which creates a hid gadget:
+
+$ modprobe libcomposite
+$ mount none cfg -t configfs
+$ mkdir cfg/usb_gadget/g1
+$ cd cfg/usb_gadget/g1
+$ mkdir configs/c.1
+$ mkdir functions/hid.usb0
+$ echo 1 > functions/hid.usb0/protocol
+$ echo 1 > functions/hid.usb0/subclass
+$ echo 8 > functions/hid.usb0/report_length
+$ cat my_report_desc > functions/hid.usb0/report_desc
+$ mkdir strings/0x409
+$ mkdir configs/c.1/strings/0x409
+$ echo 0xa4ac > idProduct
+$ echo 0x0525 > idVendor
+$ echo serial > strings/0x409/serialnumber
+$ echo manufacturer > strings/0x409/manufacturer
+$ echo HID Gadget > strings/0x409/product
+$ echo "Conf 1" > configs/c.1/strings/0x409/configuration
+$ echo 120 > configs/c.1/MaxPower
+$ ln -s functions/hid.usb0 configs/c.1
+$ echo 12480000.hsotg > UDC
+
+TESTING THE FUNCTION
+====================
+
+gadget)
+- create the gadget
+- connect the gadget to a host, preferably not the one used
+to control the gadget
+- run a program which writes to /dev/hidg<N>, e.g.
+a userspace program found in Documentation/usb/gadget_hid.txt:
+
+$ ./hid_gadget_test /dev/hidg0 keyboard
+
+host)
+- observe the keystrokes from the gadget
+
+Andrzej Pietrasiewicz (8):
+  usb: gadget: f_hid: check return value of class_create
+  usb: gadget: f_hid: check return value of device_create
+  usb: gadget: hid: mirror init operations in module cleanup
+  usb: gadget: f_hid: convert to new function interface with backward
+    compatibility
+  usb: gadget: hid: convert to new interface of f_hid
+  usb: gadget: f_hid: remove compatibility layer
+  usb: gadget: f_hid: use usb_gstrings_attach
+  usb: gadget: hid: add configfs support
+
+ Documentation/ABI/testing/configfs-usb-gadget-hid |  11 +
+ Documentation/usb/gadget_hid.txt                  |   7 +
+ drivers/usb/gadget/Kconfig                        |  13 +
+ drivers/usb/gadget/function/Makefile              |   2 +
+ drivers/usb/gadget/function/f_hid.c               | 360 ++++++++++++++++++----
+ drivers/usb/gadget/function/u_hid.h               |  42 +++
+ drivers/usb/gadget/legacy/Kconfig                 |   1 +
+ drivers/usb/gadget/legacy/hid.c                   |  79 +++--
+ 8 files changed, 428 insertions(+), 87 deletions(-)
+ create mode 100644 Documentation/ABI/testing/configfs-usb-gadget-hid
+ create mode 100644 drivers/usb/gadget/function/u_hid.h

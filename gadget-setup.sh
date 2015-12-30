@@ -15,7 +15,7 @@ MAX_POWER_MA=120                                                  #  max power t
 PROTOCOL=1                                                        #  1 for keyboard. see usb spec
 SUBCLASS=1                                                        #  it seems either 1 or 0 works, dunno why
 REPORT_LENGTH=8                                                   #  number of bytes per report
-DESCRIPTOR=./keyboard-descriptor.bin                              #  binary blob of report descriptor, see HID class spec
+DESCRIPTOR=/config/usb_gadget/keyboardgadget/kybd-descriptor.bin  #  binary blob of report descriptor, see HID class spec
 UDC=ci_hdrc.0                                                     #  name of the UDC driver to use (found in /sys/class/udc/)   
 
 # gadget configuration
