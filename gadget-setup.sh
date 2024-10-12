@@ -21,7 +21,7 @@ UDC=ci_hdrc.0                                                     #  name of the
 # gadget configuration
 modprobe libcomposite                                             #  load configfs
 mount -t configfs none /config || { \                             #  mount configfs as type configfs to /config or from /sys/kernel/config (bind operation)
-  mkdir /config && mount --rbind -t configfs /sys/kernel/config /config
+  mkdir /config && mount --rbind -t configfs /sys/kernel/config /config; }
 mkdir /config/usb_gadget/keyboardgadget                           #  make a new gadget skeleton
 cd /config/usb_gadget/keyboardgadget                              #  cd to gadget dir
 mkdir configs/c.1                                                 #  make the skeleton for a config for this gadget
